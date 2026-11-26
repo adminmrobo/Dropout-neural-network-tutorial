@@ -1,6 +1,6 @@
 # 하루의 실험실 : 뉴런의 드롭아웃
 
-**AHNBOAT LAB · 하루의 실험실 · EP.01**
+**AHNBOAT LAB · 조수 하루의 3차원 실험실 · EP.01** — 랩타운 2층 실험 방의 실험대 (12, 0, 12): https://adminmrobo.github.io/ahn_boat_lab_town/haru3d.html
 
 실험조수 하루가 드롭아웃 실험을 직접 다시 돌리고, 숫자와 그림으로 설명합니다.
 
