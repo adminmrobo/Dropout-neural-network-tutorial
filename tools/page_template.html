@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>하루의 실험실 : 뉴런의 드롭아웃</title>
+<meta name="description" content="실험조수 하루가 드롭아웃 실험(1-64-1 tanh 망, 60,000 스텝)을 다시 돌려 숫자와 그림으로 설명합니다.">
+<style>
+/* VOICE: 조수 하루가 실험 결과를 발표하는 차분한 해설
+   IDEA: 원본 릴의 검은 화면을 그대로 옮긴 '무대' + 그 아래 코드
+   PICTURE: 캔버스로 다시 그린 장면(3D 신경망 격자, 좌표축 그래프, 마스크)
+   COLOUR and TYPE: 흰 페이지, 무대는 원본과 같은 밤색(남색) — 밝은 무대로도 전환
+   LAYOUT: 왼쪽 파트 목록, 가운데 무대와 자막, 오른쪽 코드 */
+:root{--ink:#18202c;--mute:#6b7686;--line:#e3e8ef;--soft:#f5f7fa;--plain:#e4572e;--drop:#1f8fd6;--accent:#e0a21b}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:#fff;color:var(--ink);font:15px/1.6 "Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;overflow-x:clip}
+header{padding:22px max(3vw,16px) 12px;border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:clamp(22px,3vw,30px);line-height:1.2}
+header p{margin:4px 0 0;color:var(--mute);font-size:14px}
+.kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:6px 12px}
+.kpi b{font-size:19px;font-variant-numeric:tabular-nums;margin-right:6px}
+.kpi span{font-size:12px;color:var(--mute)}
+.app{display:grid;grid-template-columns:210px minmax(0,1fr) 360px;gap:0;align-items:start}
+nav{padding:12px 8px;background:var(--soft);border-right:1px solid var(--line);min-height:calc(100vh - 140px)}
+nav button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:8px;font:inherit;font-size:14px;color:var(--ink);cursor:pointer;min-height:44px}
+nav button small{color:var(--mute);font-size:11px;margin-left:4px}
+nav button.on{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);font-weight:700}
+nav .bar{height:3px;background:var(--line);border-radius:2px;margin-top:4px;overflow:hidden}
+nav .bar i{display:block;height:100%;width:0;background:var(--drop)}
+.center{padding:16px clamp(12px,2vw,24px)}
+.stage{border-radius:16px;overflow:hidden;background:var(--sbg);transition:background .3s}
+.stage .ttl{text-align:center;padding:14px 10px 2px;color:var(--sink)}
+.stage .ttl b{display:block;font-size:30px;font-weight:500;letter-spacing:.01em}
+.stage .ttl span{font:13px ui-monospace,Menlo,monospace;color:var(--smute)}
+.stage .kick{font:700 11px system-ui;color:#ff5a4a;letter-spacing:.08em}
+.fig{position:relative;margin:8px 12px 0}
+.fig canvas{display:block;width:100%}
+.sub{padding:12px 18px 16px;min-height:76px;color:var(--sink);font-size:17px;line-height:1.55;text-align:center}
+.sub .prev{display:block;font-size:13px;color:var(--smute);margin-bottom:2px;min-height:20px}
+.ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.ctrl button,.ctrl select{border:1px solid var(--line);background:#fff;border-radius:10px;padding:0 14px;height:44px;font:inherit;font-size:14px;cursor:pointer;color:var(--ink)}
+.ctrl button.main{background:var(--ink);color:#fff;border-color:var(--ink);min-width:110px}
+.ctrl label{font-size:13px;color:var(--mute);display:flex;gap:6px;align-items:center}
+.dots{display:flex;gap:6px;justify-content:center;padding-bottom:12px}
+.dots button{width:26px;height:26px;border-radius:50%;border:0;background:var(--sgrid);color:var(--smute);font:11px system-ui;cursor:pointer}
+.dots button.on{background:var(--drop);color:#fff}
+aside{padding:16px 16px 16px 0}
+.card{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;background:#fff}
+.card h3{margin:0 0 8px;font-size:13px;color:var(--mute);font-weight:600}
+pre{margin:0;font:12px/1.7 "JetBrains Mono",ui-monospace,Menlo,monospace;background:#0f1726;color:#cfd8e6;border-radius:10px;padding:8px 0;overflow-x:auto}
+pre .ln{display:block;padding:0 10px;border-left:3px solid transparent;opacity:.55;transition:all .3s;white-space:pre}
+pre .ln.hl{opacity:1;background:rgba(245,196,81,.14);border-left-color:#f5c451}
+pre .n{color:#5d6b80;margin-right:8px}
+pre .c{color:#6f7d92}
+.list{margin:0;padding-left:18px;font-size:13px;color:#3b4554}
+.list li{margin:2px 0;cursor:pointer}
+.list li.on{color:var(--drop);font-weight:700}
+.note{font-size:12px;color:var(--mute)}
+@media (max-width:1180px){.app{grid-template-columns:200px minmax(0,1fr)}aside{grid-column:2;padding:0 clamp(12px,2vw,24px) 16px}}
+@media (max-width:760px){.app{grid-template-columns:1fr}nav{display:flex;overflow-x:auto;min-height:0;border-right:0;border-bottom:1px solid var(--line)}nav button{flex:none;width:auto;min-width:130px}aside{grid-column:1;padding:0 12px 16px}.stage .ttl b{font-size:24px}.sub{font-size:15px}}
+
+.talk{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:end;padding:10px 18px 14px}
+.haru{width:136px;height:136px;border-radius:12px;background:#d4d4d6;display:block;transition:transform .12s;border:2px solid #2a1f3d}
+.bubble{position:relative;background:#fff;color:#18202c;border-radius:14px;padding:12px 16px 12px;min-height:84px;font-size:17px;line-height:1.55;border:2px solid #2a1f3d;box-shadow:3px 3px 0 #2a1f3d}
+.bubble:before{content:"";position:absolute;left:-12px;bottom:22px;border:10px solid transparent;border-right-color:#2a1f3d;border-left:0}
+.bubble:after{content:"";position:absolute;left:-8px;bottom:24px;border:8px solid transparent;border-right-color:#fff;border-left:0}
+.bubble .who{display:block;font:800 12px system-ui;color:#957cc9;margin-bottom:2px}
+.bubble .caret{display:inline-block;width:8px;height:15px;background:#957cc9;margin-left:2px;vertical-align:-2px;animation:bl 1s steps(2) infinite}
+@keyframes bl{50%{opacity:0}}
+@media (max-width:760px){.haru{width:96px;height:96px}.bubble{font-size:15px;min-height:70px}}
+@media (prefers-reduced-motion:reduce){.bubble .caret{animation:none}}
+</style>
+</head>
+<body>
+<header>
+  <div style="font:700 12px ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#957cc9">AHNBOAT LAB · 하루의 실험실 · EP.01</div>
+  <h1>하루의 실험실 : 뉴런의 드롭아웃</h1>
+  <p>같은 실험 데이터로 다시 그린 장면을 조수 하루가 말풍선으로 설명합니다. ▶ 재생을 누르면 대사가 읽는 속도에 맞춰 넘어가고, 무대를 누르면 다음 대사로 갑니다.</p>
+  <div class="kpis">
+    <div class="kpi"><b style="color:var(--plain)">0.135</b><span>일반 망 · 새 점 오차</span></div>
+    <div class="kpi"><b style="color:var(--drop)">0.045</b><span>드롭아웃 망 · 새 점 오차</span></div>
+    <div class="kpi"><b>3×</b><span>더 작은 오차</span></div>
+    <div class="kpi"><b>1-64-1</b><span>tanh · 60,000 스텝 · lr 0.002 · p 0.5</span></div>
+  </div>
+</header>
+<div class="app">
+  <nav id="nav"></nav>
+  <div class="center">
+    <div class="stage" id="stage">
+      <div class="ttl"><div class="kick">하루의 실험실 · EP.01</div><b>Dropout</b><span>뉴런을 끄고, 패턴을 배운다</span></div>
+      <div class="fig"><canvas id="cv"></canvas></div>
+      <div class="talk"><img class="haru" id="haru" alt="조수 하루" width="136" height="136"><div class="bubble"><span class="who">조수 하루</span><span id="cur"></span><span class="caret" id="caret"></span></div></div>
+      <div class="dots" id="dots"></div>
+    </div>
+    <div class="ctrl">
+      <button class="main" id="play">▶ 재생</button>
+      <button id="prevp" aria-label="이전 파트">◀ 이전</button>
+      <button id="nextp" aria-label="다음 파트">다음 ▶</button>
+      <select id="spd" aria-label="읽기 속도"><option value="0.75">읽기: 천천히</option><option value="1" selected>읽기: 보통</option><option value="1.35">읽기: 빠르게</option></select>
+      <select id="theme" aria-label="무대 색"><option value="dark">무대: 원본처럼 어둡게</option><option value="light">무대: 밝게</option></select>
+      <label><input type="checkbox" id="auto" checked> 끝나면 다음 파트</label>
+    </div>
+  </div>
+  <aside>
+    <div class="card"><h3>dropout_reel.py — 지금 설명하는 줄</h3><pre id="code"></pre></div>
+    <div class="card"><h3 id="ltitle">이 파트의 대사</h3><ol class="list" id="lines"></ol></div>
+    <div class="card note">하루 그림: 캐릭터 팩 <a href="https://adminmrobo.github.io/fruitfly-lab-expressions/">fruitfly-lab-expressions</a>의 E07 설명·E01 기쁨·E08 안내·E04 놀람·E09 생각·E12 응원·E10 확인. 모든 숫자와 곡선은 영상 속 코드를 같은 시드(51)로 다시 돌려 얻었습니다(새 점 오차 0.135 · 0.045, 100스텝 0.026, 학습 오차 0.069, 상위 8개 뉴런 47 % · 33 %). 작은 망 곡선은 학습이 끝난 가중치로 페이지 안에서 직접 계산합니다.</div>
+  </aside>
+</div>
+<footer style="border-top:1px solid var(--line);padding:16px max(3vw,16px);font-size:12px;color:var(--mute)">
+  원작 아이디어: “Machine Learning from Scratch, part 51: dropout” 릴. 이 페이지는 그 실험 코드를 같은 시드로 다시 돌려 장면을 새로 그렸습니다(원본 영상·소리 미사용).
+  · <a href="https://www.ahnboat.xyz/">AHNBOAT LAB</a> · 하루 그림: <a href="https://adminmrobo.github.io/fruitfly-lab-expressions/">캐릭터 팩</a>
+  · Reon Ahn's Page © 2022 Reon Ahn · <a href="https://creativecommons.org/licenses/by-nc/4.0/deed.ko">CC BY-NC 4.0</a>
+</footer>
+<script>
+{
+const D=__DATA__, P=__SCRIPT__;
+const $=s=>document.querySelector(s), cv=$("#cv");
+const CODE=[["import numpy as np; g = np.random.default_rng(51)",""],["x = np.c_[-1:1:12j]","# 12 training points"],["y = np.sin(3 * x) + g.normal(0, .4, (12, 1))",""],["X = np.c_[-1:1:99j]; Y = np.sin(3 * X)","# test"],["one = lambda v: np.c_[v, v ** 0]","# with a bias"],["net = lambda v: np.tanh(one(v) @ A) @ B","# all on"],["W = g.normal(0, 5, (2, 64)); lr = .002",""],["for p in 0, .5:","# plain net, then dropout net"],["    A, B = W.copy(), np.zeros((64, 1))",""],["    for t in range(60000):",""],["        a = np.tanh(one(x) @ A)","# 64 neurons"],["        m = (g.random(a.shape) >= p) / (1 - p)",""],["        h = a * m; e = h @ B - y","# error"],["        d = e @ B.T * m * (1 - a * a)","# backprop"],["        A -= lr * one(x).T @ d; B -= lr * h.T @ e",""],["    print(p, np.mean((net(X) - Y) ** 2))","# test"]];
+const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+$("#code").innerHTML=CODE.map((l,i)=>`<span class="ln" id="L${i+1}"><span class="n">${String(i+1).padStart(2," ")}</span>${esc(l[0])}  <span class="c">${esc(l[1])}</span></span>`).join("");
+const CODE_BY={7:[[2,3],[8,9],[12],[12,13],[6]]};
+
+/* ---------- theme ---------- */
+const TH={dark:{bg:"#0b111c",panel:"#0f1828",border:"#22304a",ink:"#e8eef7",mute:"#8b97a8",grid:"#1a2639",node:"#9ad8ff",core:"#0f1828",off:"#3b475b",plain:"#ff6a4d",drop:"#4fb4ff",sum:"#f5c451",dash:"#8692a6",dot:"#ffffff",dotS:"#0f1828",glow:1},
+          light:{bg:"#ffffff",panel:"#f6f8fb",border:"#dce3ec",ink:"#18202c",mute:"#6b7686",grid:"#e8edf4",node:"#1f8fd6",core:"#ffffff",off:"#c3cbd7",plain:"#e4572e",drop:"#1f8fd6",sum:"#d9961a",dash:"#9aa4b2",dot:"#ffffff",dotS:"#18202c",glow:0}};
+let C=TH.dark;
+function applyTheme(k){C=TH[k];const s=$("#stage").style;s.setProperty("--sbg",C.bg);s.setProperty("--sink",C.ink);s.setProperty("--smute",C.mute);s.setProperty("--sgrid",C.grid)}
+applyTheme("dark");$("#theme").onchange=e=>applyTheme(e.target.value);
+
+/* ---------- math ---------- */
+const XS=Array.from({length:99},(_,i)=>-1+2*i/98), TRUE=XS.map(x=>Math.sin(3*x));
+function predict(net,mask,scale=1,xs=XS){const A=D[net].A,B=D[net].B;return xs.map(x=>{let s=0;for(let j=0;j<64;j++){if(mask&&!mask[j])continue;s+=Math.tanh(A[0][j]*x+A[1][j])*B[j]*scale}return s})}
+const FULL={plain:predict("plain"),drop:predict("drop")};
+function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const maskOf=k=>{const r=rng(k*9973+17);return Array.from({length:64},()=>r()>=.5)};
+const realMask=k=>[...D.masks[k%D.masks.length]].map(c=>c==="1");
+function curveAt(net,step){const S=D.snaps,cv=D[net].curves;let i=0;while(i<S.length-1&&S[i+1]<=step)i++;const j=Math.min(i+1,S.length-1);if(i===j||step<=S[0])return cv[step<=S[0]?0:i];const f=Math.min(1,Math.max(0,(Math.log(step+1)-Math.log(S[i]+1))/(Math.log(S[j]+1)-Math.log(S[i]+1))));return cv[i].map((y,k)=>y+(cv[j][k]-y)*f)}
+const smooth=(a,w)=>a.map((_,i)=>{let s=0,n=0;for(let k=Math.max(0,i-w);k<=Math.min(a.length-1,i+w);k++){s+=a[k];n++}return s/n});
+const ease=t=>t<0?0:t>1?1:t*t*(3-2*t);
+const ORDER=(()=>{const b=D.plain.B.map((v,i)=>[Math.abs(v),i]).sort((a,b)=>b[0]-a[0]);return b.map(z=>z[1])})();
+const SHOW12=Array.from({length:12},(_,i)=>i); // neurons 0..11 as in the reel ("12 of 64 shown")
+
+/* ---------- drawing primitives ---------- */
+let c,W,H;
+function rr(x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+function panel(x,y,w,h){rr(x,y,w,h,10);c.fillStyle=C.panel;c.fill();c.strokeStyle=C.border;c.lineWidth=1;c.stroke()}
+function txt(s,x,y,o={}){c.font=`${o.w||600} ${o.s||12}px ${o.mono?"ui-monospace,Menlo,monospace":"'Pretendard','Noto Sans KR',system-ui,sans-serif"}`;c.fillStyle=o.col||C.ink;c.textAlign=o.a||"left";c.globalAlpha=o.al??1;c.fillText(s,x,y);c.globalAlpha=1;c.textAlign="left"}
+function badge(s,x,y,o={}){c.font=`700 ${o.s||12}px 'Pretendard','Noto Sans KR',system-ui`;const w=c.measureText(s).width+28,h=(o.s||12)+14;c.globalAlpha=o.al??1;rr(x-w/2,y-h/2,w,h,6);c.fillStyle=C.panel;c.fill();c.strokeStyle=o.col||C.ink;c.lineWidth=1.4;c.stroke();c.fillStyle=o.col||C.ink;c.textAlign="center";c.fillText(s,x,y+(o.s||12)/2-2);c.textAlign="left";c.globalAlpha=1}
+function glow(col,b){if(C.glow){c.shadowColor=col;c.shadowBlur=b}}
+function noglow(){c.shadowBlur=0}
+function nodeOn(x,y,r,col=C.node,al=1){c.globalAlpha=al;glow(col,10);c.beginPath();c.arc(x,y,r,0,7);c.fillStyle=C.core;c.fill();c.strokeStyle=col;c.lineWidth=1.8;c.stroke();noglow();c.beginPath();c.arc(x,y,r*.38,0,7);c.fillStyle=col;c.fill();c.globalAlpha=1}
+function nodeOff(x,y,r,al=1){c.globalAlpha=al;c.beginPath();c.arc(x,y,r,0,7);c.fillStyle=C.off;c.fill();c.strokeStyle=C.panel;c.lineWidth=1.4;const d=r*.45;c.beginPath();c.moveTo(x-d,y-d);c.lineTo(x+d,y+d);c.moveTo(x+d,y-d);c.lineTo(x-d,y+d);c.stroke();c.globalAlpha=1}
+function io(x,y,lab,col,r=11){glow(col,12);c.beginPath();c.arc(x,y,r,0,7);c.fillStyle=C.core;c.fill();c.strokeStyle=col;c.lineWidth=2;c.stroke();noglow();txt(lab,x,y+4.5,{a:"center",col,s:12,w:800})}
+/* network: hidden column of n neurons */
+function net(o){const {x0,y0,w,h,on}=o,n=on.length,ix=x0+14,ox=x0+w-14,mx=o.mx??x0+w/2,cy=y0+h/2,r=o.r??Math.min(8,(h-8)/n/2.5);
+  const ys=on.map((_,j)=>y0+r+2+(h-2*r-4)*j/(n-1));
+  ys.forEach((y,j)=>{c.lineWidth=.8;c.strokeStyle=on[j]?C.mute:C.grid;c.globalAlpha=on[j]?.55:.6;c.beginPath();c.moveTo(ix,cy);c.lineTo(mx,y);c.stroke();
+    const ow=o.outW?o.outW[j]:null;c.globalAlpha=on[j]?(ow?ow.al:.6):.35;c.strokeStyle=on[j]?(ow?ow.col:C.mute):C.grid;c.lineWidth=on[j]?(ow?ow.lw:.8):.6;c.beginPath();c.moveTo(mx,y);c.lineTo(ox,cy);c.stroke();c.globalAlpha=1});
+  ys.forEach((y,j)=>{on[j]?nodeOn(mx,y,r,o.hl===j?C.ink:C.node):nodeOff(mx,y,r);if(o.hl===j){c.beginPath();c.arc(mx,y,r+5,0,7);c.strokeStyle=C.ink;c.lineWidth=1.6;c.stroke()}});
+  io(ix,cy,"x",C.ink);io(ox,cy,"Σ",C.sum);
+  if(o.labels){txt("입력",ix,cy+30,{a:"center",col:C.mute,s:11});txt("출력",ox,cy+30,{a:"center",col:C.mute,s:11})}
+  return{ys,mx,ix,ox,cy,r}}
+function curtain(x,y,h,al=1){c.globalAlpha=.55*al;rr(x-4,y,8,h,4);c.fillStyle=C.off;c.fill();c.globalAlpha=1}
+/* chart with real coordinates */
+function chart(x,y,w,h,o={}){panel(x,y,w,h);const pl=o.pl??30,pb=o.pb??20,pt=o.pt??(o.title?24:8),pr=8;const bx=x+pl,by=y+pt,bw=w-pl-pr,bh=h-pt-pb,xr=o.xr||[-1.05,1.05],yr=o.yr||[-2,2];
+  const m={X:v=>bx+(v-xr[0])/(xr[1]-xr[0])*bw,Y:v=>by+bh-(v-yr[0])/(yr[1]-yr[0])*bh,bx,by,bw,bh};
+  c.lineWidth=1;(o.yt||[-2,-1,0,1,2]).forEach(t=>{const Y=m.Y(t);c.strokeStyle=t===0&&!o.noZero?C.border:C.grid;c.beginPath();c.moveTo(bx,Y);c.lineTo(bx+bw,Y);c.stroke();if(!o.mini)txt(o.yf?o.yf(t):String(t),bx-5,Y+3.5,{a:"right",col:C.mute,s:10,mono:1,w:400})});
+  (o.xt||[-1,-.5,0,.5,1]).forEach(t=>{const X=m.X(t);c.strokeStyle=C.grid;c.beginPath();c.moveTo(X,by);c.lineTo(X,by+bh);c.stroke();if(!o.mini)txt(o.xf?o.xf(t):String(t),X,by+bh+13,{a:"center",col:C.mute,s:10,mono:1,w:400})});
+  if(o.title)txt(o.title,x+10,y+16,{col:o.tcol||C.ink,s:12,w:800});if(o.step!=null)txt("step "+Math.round(o.step).toLocaleString(),x+w-10,y+16,{a:"right",col:C.mute,s:11,mono:1,w:500});return m}
+function truth(m,al=1){c.save();c.setLineDash([5,5]);c.globalAlpha=.8*al;line(m,XS,TRUE,C.dash,1.3);c.restore()}
+function line(m,xs,ys,col,lw=2,n,al=1){c.strokeStyle=col;c.lineWidth=lw;c.globalAlpha=al;c.beginPath();const k=n??xs.length;for(let i=0;i<k;i++){let yy=Math.max(-9,Math.min(9,ys[i]));const X=m.X(xs[i]),Y=Math.max(m.by-6,Math.min(m.by+m.bh+6,m.Y(yy)));i?c.lineTo(X,Y):c.moveTo(X,Y)}c.stroke();c.globalAlpha=1}
+function dots(m,n=12,r=3.6){for(let i=0;i<n;i++){c.beginPath();c.arc(m.X(D.x[i]),m.Y(D.y[i]),r,0,7);c.fillStyle=C.dot;c.fill();c.strokeStyle=C.dotS;c.lineWidth=1.2;c.stroke()}}
+/* 3D lattice of neurons */
+const LAT=(()=>{const r=rng(2012),N=[],E=[],L=7,G=6,id=(l,a,b)=>l*G*G+a*G+b;for(let l=0;l<L;l++)for(let a=0;a<G;a++)for(let b=0;b<G;b++)N.push([l/(L-1)-.5,a/(G-1)-.5,b/(G-1)-.5,l]);
+  for(let l=0;l<L-1;l++)for(let a=0;a<G;a++)for(let b=0;b<G;b++){E.push([id(l,a,b),id(l+1,a,b)]);for(let k=0;k<2;k++){const a2=Math.min(G-1,Math.max(0,a+Math.round(r()*2-1))),b2=Math.min(G-1,Math.max(0,b+Math.round(r()*2-1)));if(r()<.55)E.push([id(l,a,b),id(l+1,a2,b2)])}}
+  for(let l=0;l<L;l+=L-1)for(let a=0;a<G;a++)for(let b=0;b<G-1;b++){E.push([id(l,a,b),id(l,a,b+1)]);E.push([id(l,b,a),id(l,b+1,a)])}return{N,E}})();
+function lattice(cx,cy,S,T,o={}){const yaw=.62+.32*Math.sin(T*.35),pit=.36+.06*Math.sin(T*.27),cy_=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pit),sp=Math.sin(pit);
+  const step=Math.floor(T*(o.rate||2)),r=rng(step*31+7),off=LAT.N.map(()=>o.drop?r()<.5:false);
+  const P=LAT.N.map(([x,y,z])=>{x*=1.35;let X=x*cy_+z*sy,Z=-x*sy+z*cy_;let Y=y*cp-Z*sp;Z=y*sp+Z*cp;const f=3.2/(3.2+Z);return[cx+X*S*f,cy+Y*S*f,Z,f]});
+  c.lineWidth=.8;LAT.E.forEach(([i,j])=>{const a=P[i],b=P[j],dead=off[i]||off[j];c.strokeStyle=dead?C.off:(o.col||C.node);c.globalAlpha=dead?.12:.22+.3*(1-(a[2]+.9)/1.8);c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.stroke()});c.globalAlpha=1;
+  const idx=P.map((p,i)=>i).sort((a,b)=>P[b][2]-P[a][2]);
+  idx.forEach(i=>{const [x,y,z,f]=P[i],rr_=2.4*f;if(off[i]){c.globalAlpha=.45;c.beginPath();c.arc(x,y,rr_*.85,0,7);c.fillStyle=C.off;c.fill()}else{c.globalAlpha=.6+.4*(1-(z+.9)/1.8);glow(o.col||C.node,7);c.beginPath();c.arc(x,y,rr_,0,7);c.fillStyle=C.glow?"#eaf7ff":(o.col||C.node);c.fill();noglow()}c.globalAlpha=1})}
+function errChart(x,y,w,h,step,series,o={}){const m=chart(x,y,w,h,{xr:[0,60000],yr:[0,.155],yt:[0,.05,.1,.15],xt:[0,60000],xf:t=>t?"step 60,000":"0",yf:t=>t?t.toFixed(2):"",pl:38,pb:20,noZero:1,title:o.title});
+  const n=Math.min(600,Math.floor(step/100)+1);
+  series.forEach(s=>{const ys=(s.sm?smooth(D[s.k][s.f],s.sm):D[s.k][s.f]).slice(0,n),xs=ys.map((_,i)=>i*100);
+    if(s.fill){c.globalAlpha=.32;c.fillStyle=s.col;c.beginPath();c.moveTo(m.X(0),m.Y(0));xs.forEach((X,i)=>c.lineTo(m.X(X),m.Y(Math.min(.155,ys[i]))));c.lineTo(m.X(xs[xs.length-1]),m.Y(0));c.fill();c.globalAlpha=1}
+    c.save();if(s.dash)c.setLineDash([5,4]);c.strokeStyle=s.col;c.lineWidth=s.lw||2;c.beginPath();xs.forEach((X,i)=>{const Y=m.Y(Math.min(.155,ys[i]));i?c.lineTo(m.X(X),Y):c.moveTo(m.X(X),Y)});c.stroke();c.restore();
+    if(s.lab&&n>3)txt(ys[ys.length-1].toFixed(s.dig||3),m.X(xs[xs.length-1])-6,m.Y(ys[ys.length-1])-8,{a:"right",col:s.col,s:15,mono:1,w:700})});
+  // legend
+  c.strokeStyle=C.ink;c.lineWidth=2;c.beginPath();c.moveTo(m.bx+14,m.by+12);c.lineTo(m.bx+36,m.by+12);c.stroke();txt("새 점",m.bx+42,m.by+16,{s:11});
+  c.save();c.setLineDash([5,4]);c.beginPath();c.moveTo(m.bx+92,m.by+12);c.lineTo(m.bx+114,m.by+12);c.stroke();c.restore();txt("학습 점",m.bx+120,m.by+16,{s:11});return m}
+
+/* ---------- scenes: (si = sentence index, f = 0..1 within it, T = seconds in part) ---------- */
+const S=[
+// 1 intro
+(si,f,T)=>{const lw=Math.min(W*.5,H*.62);lattice(W/2,H*.3,lw*.55,T,{drop:true,rate:1.5});
+  const al=ease(si>=1?1:f*2-.6),cw=Math.min(W*.42,330),ch=H*.36,y=H*.6;
+  c.globalAlpha=al;[["일반 망",C.plain,"plain",W/2-cw-10],["드롭아웃 망",C.drop,"drop",W/2+10]].forEach(([t,col,k,x],i)=>{const m=chart(x,y,cw,ch,{title:t,tcol:col,mini:1,pt:22,pb:8,pl:8});c.globalAlpha=al;truth(m,al);const n=si>=2?Math.max(2,Math.floor(99*ease(i?f*2-1:f*2))):99;line(m,XS,FULL[k],col,2.4,si>=2?n:99,al);dots(m)});c.globalAlpha=1},
+// 2 coin flips
+(si,f,T)=>{const nx=W*.18,nw=W*.58,ny=40,nh=H-64;let step=1,mask;
+  if(si===0)mask=Array(12).fill(true);else if(si<=2)mask=realMask(0).slice(0,12);else{step=2+Math.floor(T*1.3)%40;mask=realMask(step-1).slice(0,12)}
+  const flipping=si===1&&f<.75,on=flipping?Array(12).fill(true):mask;
+  const g=net({x0:nx,y0:ny,w:nw,h:nh,on,labels:1});txt("은닉층 (64개 중 12개 표시)",g.mx,24,{a:"center",col:C.mute,s:12,w:700});
+  if(si>=1){g.ys.forEach((y,j)=>{const ph=flipping?Math.cos(T*14+j*1.7):1,col=mask[j]?C.sum:C.off;c.save();c.translate(g.mx+26,y);c.scale(Math.abs(ph)*.9+.1,1);c.beginPath();c.arc(0,0,6,0,7);c.fillStyle=flipping?(ph>0?C.sum:C.off):col;c.fill();c.restore()});badge("확률 1/2씩",W*.14,40,{s:12})}
+  if(si>=3){const cx=g.mx+(g.ox-g.mx)*(.35+.25*Math.sin(T*2));curtain(cx,ny+6,nh-12)}
+  const offn=on.filter(z=>!z).length;txt("step "+step,W-24,52,{a:"right",s:22,mono:1,w:700});txt(si===0?"모두 켜짐":`12개 중 ${offn}개 꺼짐`,W-24,74,{a:"right",col:C.mute,s:13,mono:1,w:500});
+  if(si>=3)txt("매 스텝 새로운 절반",W-24,98,{a:"right",col:C.drop,s:12,w:700})},
+// 3 plain overfit
+(si,f,T)=>{const p=(si+f)/4,step=Math.max(1,Math.round(60000*Math.pow(ease(p*1.08),2.6))),cw=W*.56,ch=H-60;
+  const m=chart(14,22,cw,ch,{title:"일반 망",tcol:C.plain,step,pb:34});truth(m);line(m,XS,curveAt("plain",step),C.plain,2.6);dots(m);
+  const B=D.plain.B,mx=Math.max(...B.map(Math.abs)),s=ease(p*1.4),idx=ORDER.slice(0,12).sort((a,b)=>a-b);
+  const outW=idx.map(j=>({col:B[j]>=0?C.drop:C.sum,lw:.6+5*Math.abs(B[j])/mx*s,al:.5+.5*s}));
+  const g=net({x0:cw+30,y0:40,w:W-cw-44,h:H-70,on:Array(12).fill(true),outW});curtain(g.mx+14,48,H-86,.6);
+  txt("오른쪽 선: 출력 가중치 (파랑 +, 노랑 −, 굵기 = 크기)",cw+30,H-12,{col:C.mute,s:10,w:500});
+  if(si>=2)txt("+ 와 − 가중치가 서로 상쇄",(cw+W)/2+8,26,{a:"center",s:12,w:800,al:ease(si>2?1:f*3)});
+  if(si>=3)badge("과적합 (part 44)",14+cw/2,H-14,{al:ease(f*3)})},
+// 4 neighbours / spread
+(si,f,T)=>{if(si<=1){const step=Math.floor(T*1.6);let on=realMask(step).slice(0,12);on[5]=true;if(si===0&&f<.3)on=Array(12).fill(true);
+   const g=net({x0:W*.2,y0:40,w:W*.6,h:H-60,on,hl:5,labels:1});curtain(g.ix+(g.mx-g.ix)*.45,46,H-70);txt("이 뉴런",g.mx+22,g.ys[5]+4,{s:13,w:800});
+   txt("이웃들이 나타났다 사라진다",W/2,24,{a:"center",col:C.mute,s:13,w:700});if(si===1)badge("이웃에게 기댈 수 없다",W/2,H-12,{al:ease(f*3)});return}
+  const fw=Math.min(W*.36,300);[["일반 망",C.plain,"plain",W*.27,47],["드롭아웃 망",C.drop,"drop",W*.73,33]].forEach(([t,col,k,cx,pct],i)=>{const al=i===0?1:ease(si===3?f*3:0)*1||(si>3?1:0),B=D[k].B,mx=Math.max(...B.map(Math.abs)),x0=cx-fw/2,x1=cx+fw/2-16,y0=50,y1=H-60,sx=x1,sy=(y0+y1)/2;
+   if(i===1&&si<3)return;c.globalAlpha=al;txt(t,cx,32,{a:"center",col,s:14,w:800});
+   c.strokeStyle=C.ink;c.lineWidth=2;c.beginPath();c.moveTo(x0,y0);c.lineTo(x0,y1);c.stroke();
+   B.forEach((b,j)=>{const y=y0+(y1-y0)*j/63,a=Math.abs(b)/mx;c.strokeStyle=col;c.globalAlpha=al*(.25+.75*a);c.lineWidth=.5+4.2*a;c.beginPath();c.moveTo(x0,y);c.lineTo(sx,sy);c.stroke()});c.globalAlpha=al;io(sx,sy,"Σ",C.sum);
+   const cnt=Math.round(pct*ease(i===0?(si===2?f*2.5:1):f*2.5));txt(`상위 8개 뉴런: ${cnt} %`,cx,H-26,{a:"center",s:15,w:800});c.globalAlpha=1});
+  if(si===3&&f>.5)txt("지식이 여러 뉴런에 퍼진다",W/2,H-6,{a:"center",col:C.mute,s:12,w:700,al:ease(f*2-1)})},
+// 5 small tests
+(si,f,T)=>{const k=Math.floor(T*1.25),mask=maskOf(k),on=mask.slice(0,12);const step=59900+(k*7)%99;
+  const g=net({x0:16,y0:44,w:W*.38,h:H-100,on});txt("step "+step.toLocaleString(),16+W*.19,28,{a:"center",s:16,mono:1,w:700});badge("작은 시험",16+W*.19,H-24);
+  const cx=W*.44,m=chart(cx,40,W-cx-14,H-110,{yr:[-2.4,2.4],yt:[-2,-1,0,1,2]});truth(m);line(m,XS,FULL.drop,C.ink,4,null,.35);
+  line(m,XS,predict("drop",mask,2),C.drop,2.2);if(si>=2)line(m,XS,predict("plain",mask,2),C.plain,1.6,null,ease(si>2?1:f*3));dots(m);
+  txt("드롭아웃 망, 절반 빠짐",cx,26,{col:C.drop,s:12,w:800});if(si>=2)txt("일반 망, 같은 절반 빠짐",cx+170,26,{col:C.plain,s:12,w:800});
+  txt("굵은 흐린 선 = 드롭아웃 망 전체",W-16,H-60,{a:"right",col:C.mute,s:10,w:500});
+  if(si>=1)badge("패턴은 남는다",cx+(W-cx)/2-70,H-24,{al:ease(si>1?1:f*3)});if(si>=3)badge("세부는 사라진다",cx+(W-cx)/2+70,H-24,{al:ease(f*3)})},
+// 6 average
+(()=>{let N=0,sum=null,errs=[],last=-1;return(si,f,T)=>{
+  if(si<=1){const k0=Math.floor(T*.8);for(let r=0;r<2;r++)for(let q=0;q<3;q++){const k=k0*6+r*3+q,mask=maskOf(k+500),gx=10+q*(W-20)/3,gy=30+r*(H-70)/2,gw=(W-20)/3-8,gh=(H-90)/2;
+    const sm=mask.slice(0,9);net({x0:gx,y0:gy+8,w:gw*.42,h:gh-16,on:sm,r:4});const m=chart(gx+gw*.44,gy+4,gw*.56,gh-8,{mini:1,pl:4,pb:4,pt:4,yr:[-2.4,2.4]});truth(m,.7);line(m,XS,predict("drop",mask,2),C.drop,1.8);dots(m,12,2.4)}
+   if(si===1)txt("모두 같은 가중치를 나눠 쓴다",W/2,H-14,{a:"center",s:13,w:800,al:ease(f*3)});else txt("서로 다른 절반 망들",W/2,H-14,{a:"center",col:C.mute,s:12,w:700});N=0;sum=null;errs=[];return}
+  const target=Math.max(1,Math.floor(1000*Math.pow(ease(f*1.15),2)));if(!sum)sum=new Array(99).fill(0);
+  while(N<target){const p=predict("drop",maskOf(N+5000),2);p.forEach((y,j)=>sum[j]+=y);N++;const avg=sum.map(s=>s/N);errs.push(avg.reduce((a,y,j)=>a+(y-FULL.drop[j])**2,0)/99)}
+  const avg=sum.map(s=>s/N),cw=W*.58,m=chart(14,26,cw,H-44,{title:`작은 망 ${N}개의 평균`,tcol:C.drop});truth(m);line(m,XS,FULL.drop,C.ink,4,null,.35);line(m,XS,avg,C.drop,2.4);dots(m);
+  txt("굵은 흐린 선 = 모두 켠 전체 망",14+cw-8,H-26,{a:"right",col:C.mute,s:10,w:500});
+  const ex=cw+30,ew=W-ex-14,m2=chart(ex,26,ew,H-44,{title:"평균 ↔ 전체 망 차이",xr:[0,3],yr:[-5,0],xt:[0,1,2,3],yt:[0,-1,-2,-3,-4,-5],xf:t=>"1e"+t,yf:t=>"1e"+t,pl:34,noZero:1});
+  c.strokeStyle=C.drop;c.lineWidth=2;c.beginPath();errs.forEach((e,i)=>{const X=m2.X(Math.log10(i+1)),Y=m2.Y(Math.max(-5,Math.log10(e+1e-9)));i?c.lineTo(X,Y):c.moveTo(X,Y)});c.stroke();txt("작은 망 수 N",ex+ew-8,H-26-4,{a:"right",col:C.mute,s:10,w:500})}})(),
+// 7 Hinton 2012 (3D)
+(si,f,T)=>{txt("Hinton et al., 2012",W/2,40,{a:"center",s:26,w:800});txt("arXiv:1207.0580",W/2,62,{a:"center",col:C.mute,s:12,mono:1,w:500});
+  lattice(W/2,H*.58,Math.min(W,H*1.4)*.36,T,{drop:si>=1,rate:2});
+  if(si>=1)badge("뉴런끼리 서로 맞춰 굳는 것(공동 적응)을 막는다",W/2,H-16,{al:ease(f*3)})},
+// 8 code: data, twin nets, mask ×2, all on
+(()=>{const r=rng(5),A=Array.from({length:12},()=>.25+.75*r());let acc=0,n=0,lk=-1,msk=Array(12).fill(1);return(si,f,T)=>{
+  if(si<=1){const cw=W*.5,m=chart(14,30,cw,H-70,{title:"잡음 섞인 점 12개",yr:[-2.4,2.4]});truth(m);dots(m,si===0?Math.max(1,Math.ceil(12*ease(f*1.6))):12,4);
+   txt("x = −1 … 1,   y = sin(3x) + 잡음",14+cw/2,H-14,{a:"center",col:C.mute,s:12,mono:1,w:500});
+   if(si>=1){const al=ease(f*3),gx=cw+40,gw=W-gx-20;c.globalAlpha=al;txt("같은 망, 두 번",gx+gw/2,30,{a:"center",s:14,w:800});
+    const B=D.plain.B;net({x0:gx,y0:48,w:gw,h:H*.36,on:Array(12).fill(true),r:5,outW:Array(12).fill({col:C.plain,lw:1.3,al:.9})});txt("일반",gx,48+H*.18-18,{col:C.plain,s:12,w:800});
+    const k=Math.floor(T*1.4),om=realMask(k).slice(0,12);const g2=net({x0:gx,y0:H*.52,w:gw,h:H*.36,on:om,r:5,outW:Array(12).fill({col:C.drop,lw:1.3,al:.9})});txt("드롭아웃",gx,H*.52+H*.18-18,{col:C.drop,s:12,w:800});curtain(g2.ix+(g2.mx-g2.ix)*.6,H*.52+4,H*.36-8);c.globalAlpha=1}return}
+  const k=Math.floor(T*(si===4?0:.9));if(si<4&&k!==lk){lk=k;msk=A.map(()=>r()>=.5?1:0);}if(si===3)for(let q=0;q<6;q++){acc+=A.reduce((s,v)=>s+v*(r()>=.5?2:0),0);n++}
+  const allOn=si===4,on=allOn?Array(12).fill(true):msk.map(Boolean),nx=W*.16,nw=W*.5;const g=net({x0:nx,y0:44,w:nw,h:H-64,on});
+  if(!allOn){txt("마스크",nx+nw/2-56,28,{a:"center",col:C.sum,s:13,w:800});g.ys.forEach((y,j)=>{txt(String(msk[j]),g.mx-44,y+4,{a:"center",col:msk[j]?C.sum:C.mute,s:12,mono:1,w:700});if(msk[j])txt("×2",g.mx+14,y+4,{col:C.sum,s:11,mono:1,w:700})});curtain(g.ix+(g.mx-g.ix)*.5,50,H-76,1-ease(si===4?f*3:0))}
+  else badge("드롭아웃 끔: 모든 뉴런 켬",nx+nw/2,22,{al:ease(f*3)});
+  const bx=nx+nw+30,bw=W-bx-20;if(si>=3||si===2){const s0=A.reduce((a,b)=>a+b,0),s1=A.reduce((s,v,i)=>s+v*msk[i]*2,0),mx=s0*2;txt("신호의 합",bx,50,{s:14,w:800});
+   txt("모두 켬",bx,76,{col:C.mute,s:11,w:600});c.fillStyle=C.mute;c.fillRect(bx,82,bw*s0/mx,14);
+   txt("절반 켬, ×2",bx,118,{col:C.sum,s:11,w:600});c.fillStyle=C.sum;c.fillRect(bx,124,bw*s1/mx,14);
+   if(si>=3&&n){const av=acc/n;txt(`평균(${n}회): ${(av/s0*100).toFixed(0)} %`,bx,166,{s:12,mono:1,w:700});c.strokeStyle=C.ink;c.lineWidth=2;c.beginPath();c.moveTo(bx+bw*av/mx,120);c.lineTo(bx+bw*av/mx,142);c.stroke()}}}})(),
+// 9 results
+(si,f,T)=>{const p1=si===0?ease(f)*.15:si===1?.15+.85*ease(f):1,p2=si<2?0:si===2?ease(f):1,cw=W*.64;
+  const ser=[{k:"plain",f:"test",col:C.plain,fill:1,lw:2.4,lab:si>=1,dig:3},{k:"plain",f:"train",col:C.plain,dash:1,lw:1.4}];
+  const m=errChart(12,10,cw,H-20,60000*p1,ser);
+  if(p2>0){const n=Math.floor(600*p2)+1,ys=smooth(D.drop.test,25).slice(0,n),tr=smooth(D.drop.train,25).slice(0,n);c.globalAlpha=.35;c.fillStyle=C.drop;c.beginPath();c.moveTo(m.X(0),m.Y(0));ys.forEach((y,i)=>c.lineTo(m.X(i*100),m.Y(Math.min(.155,y))));c.lineTo(m.X((n-1)*100),m.Y(0));c.fill();c.globalAlpha=1;
+   c.strokeStyle=C.drop;c.lineWidth=2.4;c.beginPath();ys.forEach((y,i)=>{i?c.lineTo(m.X(i*100),m.Y(Math.min(.155,y))):c.moveTo(m.X(0),m.Y(Math.min(.155,y)))});c.stroke();
+   c.save();c.setLineDash([5,4]);c.lineWidth=1.4;c.beginPath();tr.forEach((y,i)=>{i?c.lineTo(m.X(i*100),m.Y(Math.min(.155,y))):c.moveTo(m.X(0),m.Y(Math.min(.155,y)))});c.stroke();c.restore();
+   txt((n>=600?D.drop.test[600]:ys[n-1]).toFixed(3),m.X((n-1)*100)-6,m.Y(ys[n-1])+18,{a:"right",col:C.drop,s:15,mono:1,w:700});txt("파랑은 보기 좋게 평활",m.bx+m.bw-6,m.by+m.bh-6,{a:"right",col:C.mute,s:9,w:500})}
+  if(si===1)txt("100스텝: 0.026",m.X(2000)+6,m.Y(.026)-6,{col:C.plain,s:11,mono:1,w:700,al:ease(f*3)});
+  const rx=cw+24,rw=W-rx-12,rh=(H-70)/2;[["일반 망",C.plain,"plain",10],["드롭아웃 망",C.drop,"drop",20+rh]].forEach(([t,col,k,y],i)=>{if(i&&si<2)return;const mm=chart(rx,y,rw,rh,{title:t,tcol:col,mini:1,pt:22,pb:6,pl:6});truth(mm);line(mm,XS,curveAt(k,60000*(i?p2:p1)),col,2.2);dots(mm,12,2.8)});
+  if(si>=3){const x=rx-10;c.strokeStyle=C.ink;c.lineWidth=1.6;c.beginPath();c.moveTo(x,m.Y(.135));c.lineTo(x,m.Y(.05));c.lineTo(x-5,m.Y(.058));c.moveTo(x,m.Y(.05));c.lineTo(x+5,m.Y(.058));c.stroke();badge("3배 작은 오차",rx+rw/2,H-18,{s:13,al:ease(f*3)})}},
+// 10 summary
+(si,f,T)=>{if(si===0){const k=Math.floor(T*1.25),mask=maskOf(k+900),g=net({x0:16,y0:44,w:W*.38,h:H-70,on:mask.slice(0,12)});curtain(g.mx+(g.ox-g.mx)*.6,50,H-82);txt("학습 중: 절반 빠짐",16+W*.19,26,{a:"center",col:C.mute,s:13,w:700});
+   const cx=W*.44,m=chart(cx,30,W-cx-14,H-96,{yr:[-2.4,2.4]});truth(m);line(m,XS,FULL.plain,C.plain,1.4,null,.8);line(m,XS,predict("drop",mask,2),C.drop,1.3,null,.6);line(m,XS,FULL.drop,C.drop,3.2);dots(m);
+   badge("일부러 더 어렵게",cx+(W-cx)/2,H-44);txt("학습 오차  일반 0.000  ·  드롭아웃 0.069",cx+(W-cx)/2,H-12,{a:"center",s:12,mono:1,w:700});return}
+  lattice(W*.36,H*.52,Math.min(W*.6,H*1.2)*.42,T,{drop:true,rate:2});
+  ["절반을 끈다","매 스텝 새 절반","패턴을 배운다"].forEach((s,i)=>{const show=si===2?1:ease(f*3-i);if(show>0)badge(s,W*.78,H*.3+i*46,{s:14,al:show})})}
+];
+
+
+/* ---------- 하루: 캐릭터 팩 fruitfly-lab-expressions (commit f114fd2) ---------- */
+const HARU=__HARU__;const himg=$("#haru");let curEx="";
+function drawHaru(ex,bob){if(ex!==curEx){himg.src=HARU[ex]||HARU.neutral;curEx=ex}himg.style.transform=bob?"translateY(-3px)":"none"}
+const EXP=[["happy","neutral","point"],["point","neutral","surprise","happy"],["neutral","point","think","surprise"],["neutral","think","point","happy"],["neutral","point","surprise","happy"],["neutral","think","point"],["point","think"],["neutral","point","point","think","happy"],["neutral","surprise","point","cheer"],["think","cheer","wink"]];
+
+/* ---------- player (no audio: lines advance by reading time) ---------- */
+let started=false,part=0,si=0,f=0,playing=false,t0=performance.now(),lineStart=performance.now(),pausedAt=0,speed=1;
+const durOf=(p,i)=>(1.6+P[p].lines[i][0].length*.11)/speed;
+const partDur=p=>P[p].lines.reduce((a,_,i)=>a+durOf(p,i)+.6/speed,0);
+const nav=$("#nav");P.forEach((p,i)=>{const b=document.createElement("button");b.innerHTML=`${i+1}. ${p.t}<small>${P[i].lines.length}마디</small><div class="bar"><i id="pb${i}"></i></div>`;b.onclick=()=>{go(i);if(!playing)togglePlay()};nav.appendChild(b)});
+function renderSide(){$("#lines").innerHTML=P[part].lines.map((l,i)=>`<li data-i="${i}" class="${i===si?"on":""}">${esc(l[0])}</li>`).join("");$("#ltitle").textContent=`파트 ${part+1} 대사 — ${P[part].t}`;
+  $("#dots").innerHTML=P[part].lines.map((_,i)=>`<button data-i="${i}" class="${i===si?"on":""}" aria-label="대사 ${i+1}">${i+1}</button>`).join("");
+  const hl=(CODE_BY[part]&&CODE_BY[part][si])||P[part].code;for(let i=1;i<=16;i++)$("#L"+i).classList.toggle("hl",hl.includes(i));
+  [...nav.children].forEach((b,j)=>b.classList.toggle("on",j===part))}
+function setLine(i){si=i;f=0;lineStart=performance.now();renderSide()}
+function go(i,s=0){part=i;t0=performance.now();setLine(s)}
+function togglePlay(){playing=!playing;started=true;$("#play").textContent=playing?"❚❚ 일시정지":"▶ 재생";if(playing)lineStart=performance.now()-f*durOf(part,si)*1000}
+$("#play").onclick=togglePlay;$("#prevp").onclick=()=>go(Math.max(0,part-1));$("#nextp").onclick=()=>go(Math.min(P.length-1,part+1));
+$("#dots").onclick=e=>{const b=e.target.closest("button");if(b)setLine(+b.dataset.i)};$("#lines").onclick=e=>{const l=e.target.closest("li");if(l)setLine(+l.dataset.i)};
+$("#spd").onchange=e=>{const k=f;speed=+e.target.value;lineStart=performance.now()-k*durOf(part,si)*1000};
+$("#stage").addEventListener("click",e=>{if(e.target.closest("button"))return;if(!playing)togglePlay();else advance()});
+function advance(){if(si+1<P[part].lines.length)setLine(si+1);else if($("#auto").checked&&part<P.length-1)go(part+1);else{f=1;if(playing)togglePlay()}}
+document.addEventListener("keydown",e=>{if(e.target.tagName==="SELECT")return;if(e.key===" "){e.preventDefault();togglePlay()}if(e.key==="ArrowRight")advance();if(e.key==="ArrowLeft")si>0?setLine(si-1):go(Math.max(0,part-1))});
+
+let dpr=1;function size(){dpr=devicePixelRatio||1;const w=cv.parentElement.clientWidth;W=w;H=Math.max(300,Math.min(540,Math.round(w*.62)));cv.width=W*dpr;cv.height=H*dpr;cv.style.height=H+"px"}
+new ResizeObserver(size).observe(cv.parentElement);size();
+let lastTxt="";
+function loop(){const now=performance.now(),T=(now-t0)/1000,el=(now-lineStart)/1000,d=durOf(part,si);
+  if(playing){f=Math.min(1,el/d);if(el>d+.6/speed)advance()}else if(!started||el<d){f=Math.max(f,Math.min(1,el/d))}
+  const line=P[part].lines[si][0],nch=Math.min(line.length,Math.floor(el*22*speed)+1),typing=nch<line.length;
+  const shown=line.slice(0,nch);if(shown!==lastTxt){$("#cur").textContent=shown;lastTxt=shown}$("#caret").style.visibility=typing?"visible":"hidden";
+  const ex=(EXP[part]&&EXP[part][si])||"neutral";drawHaru(ex,typing&&Math.floor(now/160)%2===0);
+  c=cv.getContext("2d");c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
+  try{S[part](si,f,T)}catch(e){console.error(e)}
+  const pos=(P[part].lines.slice(0,si).reduce((a,_,i)=>a+durOf(part,i),0)+f*d)/partDur(part);
+  for(let i=0;i<P.length;i++)$("#pb"+i).style.width=(i<part?100:i===part?Math.min(100,pos*100):0)+"%";
+  requestAnimationFrame(loop)}
+go(0);requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
