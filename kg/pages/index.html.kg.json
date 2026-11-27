@@ -1,0 +1,503 @@
+{
+ "version": "1.0",
+ "page": "Dropout-neural-network-tutorial",
+ "nodes": [
+  {
+   "id": "lab:concept/dropout",
+   "type": "Method",
+   "label": {
+    "ko": "드롭아웃",
+    "en": "Dropout"
+   },
+   "anchor": "#stage",
+   "level": 2,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "학습할 때 은닉 뉴런마다 동전을 던져 약 절반(p = 0.5)을 끄고, 살아남은 뉴런에 2를 곱한 뒤, 학습이 끝나면 모두 켜는 방법."
+   },
+   "family": "regularization"
+  },
+  {
+   "id": "lab:concept/inverted-dropout",
+   "type": "Method",
+   "label": {
+    "ko": "역 드롭아웃 (×2)",
+    "en": "Inverted dropout"
+   },
+   "anchor": "#stage",
+   "level": 3,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "학습 때 살아남은 뉴런 출력에 1/(1−p)=2를 곱해 두어, 학습이 끝난 뒤 모두 켰을 때 출력 크기가 그대로 맞게 하는 방식."
+   },
+   "family": "regularization"
+  },
+  {
+   "id": "lab:concept/overfitting",
+   "type": "Concept",
+   "label": {
+    "ko": "과적합",
+    "en": "Overfitting"
+   },
+   "anchor": "#stage",
+   "level": 1,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "학습 점은 거의 완벽히 맞히지만(오차 0.000) 처음 보는 점에서 오차가 커지는 상태."
+   },
+   "family": "ml-basics"
+  },
+  {
+   "id": "lab:concept/co-adaptation",
+   "type": "Limitation",
+   "label": {
+    "ko": "뉴런끼리 기대기 (공동 적응)",
+    "en": "Co-adaptation of feature detectors"
+   },
+   "anchor": "#stage",
+   "level": 3,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "몇몇 뉴런이 서로에게 기대어 함께만 작동하는 상태. 일반 망은 상위 8개 뉴런이 출력 가중치의 47%를 차지했다."
+   },
+   "family": "regularization"
+  },
+  {
+   "id": "lab:concept/implicit-ensemble",
+   "type": "Concept",
+   "label": {
+    "ko": "작은 망들의 평균 (암묵적 앙상블)",
+    "en": "Implicit ensemble of thinned networks"
+   },
+   "anchor": "#stage",
+   "level": 3,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "스텝마다 다른 뉴런을 끈 작은 망이 시험되고, 학습 뒤에는 모든 뉴런을 켜서 그 작은 망들의 평균처럼 동작한다."
+   },
+   "family": "ensemble"
+  },
+  {
+   "id": "lab:concept/generalization-error",
+   "type": "Metric",
+   "label": {
+    "ko": "새 점 오차",
+    "en": "Error on unseen points"
+   },
+   "anchor": "#stage",
+   "level": 1,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "학습에 쓰지 않은 새 점 99개에서 잰 오차. 일반 망 0.135, 드롭아웃 망 0.045."
+   },
+   "family": "evaluation"
+  },
+  {
+   "id": "lab:concept/training-error",
+   "type": "Metric",
+   "label": {
+    "ko": "학습 점 오차",
+    "en": "Training error"
+   },
+   "anchor": "#stage",
+   "level": 1,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "학습에 쓴 점 12개에서 잰 오차. 일반 망 0.000, 드롭아웃 망 0.069."
+   },
+   "family": "evaluation"
+  },
+  {
+   "id": "lab:method/mlp-1-64-1",
+   "type": "Method",
+   "label": {
+    "ko": "1-64-1 tanh 망",
+    "en": "1-64-1 tanh network"
+   },
+   "anchor": "#stage",
+   "level": 1,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "입력 1개, tanh 은닉 뉴런 64개, 출력 1개의 작은 신경망."
+   },
+   "family": "nn-basics"
+  },
+  {
+   "id": "lab:concept/tanh",
+   "type": "Concept",
+   "label": {
+    "ko": "tanh 활성화 함수",
+    "en": "tanh activation"
+   },
+   "anchor": "#stage",
+   "level": 1,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "mentioned",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "family": "nn-basics"
+  },
+  {
+   "id": "lab:method/gradient-descent",
+   "type": "Method",
+   "label": {
+    "ko": "경사하강법",
+    "en": "Gradient descent"
+   },
+   "anchor": "#stage",
+   "level": 1,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "오차가 줄어드는 방향으로 가중치를 조금씩 옮기는 학습. 이 실험은 60,000 스텝, 학습률 0.002."
+   },
+   "family": "optimization"
+  },
+  {
+   "id": "lab:dataset/noisy-sin3x",
+   "type": "Dataset",
+   "label": {
+    "ko": "잡음 섞인 sin(3x) 점 12개",
+    "en": "12 noisy points of sin(3x)"
+   },
+   "anchor": "#stage",
+   "level": 1,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "학습에 쓴 점 12개와 새 점 99개."
+   }
+  },
+  {
+   "id": "lab:sim/dropout-run",
+   "type": "Simulation",
+   "label": {
+    "ko": "드롭아웃 실험 다시 돌리기 (60,000 스텝, 시드 51)",
+    "en": "Dropout rerun"
+   },
+   "anchor": "#stage",
+   "level": 1,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "같은 망을 그냥 한 번, 드롭아웃으로 한 번 학습해 오차 곡선·뉴런 마스크·평균 곡선을 캔버스로 보여 주는 장면."
+   }
+  },
+  {
+   "id": "lab:sim/dropout-mask-code",
+   "type": "Simulation",
+   "label": {
+    "ko": "코드: 마스크와 ×2",
+    "en": "Code: mask and ×2"
+   },
+   "anchor": "#stage",
+   "level": 1,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "동전 마스크를 곱하고 2를 곱하는 핵심 줄."
+   }
+  },
+  {
+   "id": "lab:question/dropout-tradeoff",
+   "type": "Question",
+   "label": {
+    "ko": "덜 외우는 대가",
+    "en": "Cost of memorizing less"
+   },
+   "anchor": "#stage",
+   "level": 2,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "드롭아웃 망은 새 점 오차가 3배 작지만 학습 점은 덜 외운다(0.069). 100스텝 무렵에는 오히려 새 점 오차가 컸다(0.055 대 0.026)."
+   }
+  },
+  {
+   "id": "lab:work/hinton2012improving",
+   "type": "Work",
+   "label": {
+    "ko": "Improving neural networks by preventing co-adaptation of feature detectors",
+    "en": "Improving neural networks by preventing co-adaptation of feature detectors"
+   },
+   "anchor": "#export",
+   "level": 2,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "mentioned",
+   "match": []
+  },
+  {
+   "id": "lab:claim/hinton2012-dropout",
+   "type": "Claim",
+   "label": {
+    "ko": "Hinton 외(2012)는 특징 검출기의 공동 적응을 막으려 드롭아웃을 제안했다",
+    "en": "Hinton et al. (2012) proposed dropout to prevent co-adaptation"
+   },
+   "anchor": "#stage",
+   "level": 2,
+   "status": "known",
+   "confidence": "high",
+   "coverage": "explained",
+   "domain": [
+    "dl"
+   ],
+   "match": [],
+   "definition": {
+    "ko": "드롭아웃 원 논문의 제목과 주장."
+   },
+   "source": [
+    {
+     "ref": "hinton2012improving",
+     "loc": ""
+    }
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "s": "lab:concept/dropout",
+   "p": "lab:broader",
+   "o": "lab:topic/dropout",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/inverted-dropout",
+   "p": "lab:broader",
+   "o": "lab:topic/dropout",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/inverted-dropout",
+   "p": "lab:partOf",
+   "o": "lab:concept/dropout",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/overfitting",
+   "p": "lab:broader",
+   "o": "lab:topic/generalization",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/co-adaptation",
+   "p": "lab:broader",
+   "o": "lab:topic/generalization",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/implicit-ensemble",
+   "p": "lab:broader",
+   "o": "lab:topic/bagging",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/implicit-ensemble",
+   "p": "lab:partOf",
+   "o": "lab:concept/dropout",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:method/mlp-1-64-1",
+   "p": "lab:broader",
+   "o": "lab:topic/mlp",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/tanh",
+   "p": "lab:broader",
+   "o": "lab:topic/activation-function",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/tanh",
+   "p": "lab:partOf",
+   "o": "lab:method/mlp-1-64-1",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:method/gradient-descent",
+   "p": "lab:broader",
+   "o": "lab:topic/gradient-descent",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:method/mlp-1-64-1",
+   "p": "lab:hasLimitation",
+   "o": "lab:concept/overfitting",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/overfitting",
+   "p": "lab:addressedBy",
+   "o": "lab:concept/dropout",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/co-adaptation",
+   "p": "lab:addressedBy",
+   "o": "lab:concept/dropout",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/overfitting",
+   "p": "lab:prerequisiteOf",
+   "o": "lab:concept/dropout",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/dropout",
+   "p": "lab:evaluatedBy",
+   "o": "lab:concept/generalization-error",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/dropout",
+   "p": "lab:evaluatedBy",
+   "o": "lab:concept/training-error",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/dropout",
+   "p": "lab:evaluatedOn",
+   "o": "lab:dataset/noisy-sin3x",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/dropout",
+   "p": "lab:demonstratedBy",
+   "o": "lab:sim/dropout-run",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/inverted-dropout",
+   "p": "lab:demonstratedBy",
+   "o": "lab:sim/dropout-mask-code",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:method/gradient-descent",
+   "p": "lab:demonstratedBy",
+   "o": "lab:sim/dropout-run",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:concept/dropout",
+   "p": "lab:raises",
+   "o": "lab:question/dropout-tradeoff",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:claim/hinton2012-dropout",
+   "p": "lab:supports",
+   "o": "lab:concept/dropout",
+   "anchor": "#stage",
+   "confidence": "high"
+  },
+  {
+   "s": "lab:claim/hinton2012-dropout",
+   "p": "lab:assertedIn",
+   "o": "lab:work/hinton2012improving",
+   "anchor": "#stage",
+   "confidence": "high"
+  }
+ ]
+}
